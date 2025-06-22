@@ -2,7 +2,7 @@
 export interface Module {
   id: string;
   type: ModuleType;
-  [key: string]: any;
+  [key: string]: string | number | boolean | object | undefined;
 }
 export type PaddingSide = "top" | "right" | "bottom" | "left";
 
@@ -76,6 +76,11 @@ export interface SpacerModule extends Module {
   backgroundColor?: string;
 }
 
+export interface Column {
+  id:string;
+  modules: ModuleUnion[];
+}
+
 export type ModuleType =
   | "text"
   | "image"
@@ -90,13 +95,16 @@ export type ModuleType =
 
 export interface ImageTextModule extends Module {
   type: "image-text";
-  image: string;
-  text: string;
+  columns: Column[];
+  gap: number;
 }
 
 export interface ColumnsModule extends Module {
   type: "columns";
-  columns: Array<ModuleUnion>;
+  columns: Column[];
+  layout: "1" | "2" | "3" | "4" | "1:2" | "2:1" | "1:3" | "3:1";
+  gap: number;
+  backgroundColor?: string;
 }
 
 export interface CodeModule extends Module {
@@ -156,22 +164,32 @@ export interface EmailBuilderContextType {
   setSelectedModuleId: (id: string | null) => void;
   activeTab: "build" | "preview";
   setActiveTab: (tab: "build" | "preview") => void;
-}
-
-export interface DragItem {
-  type: ModuleType;
-}
-export interface EmailBuilderContextType {
-  state: EmailBuilderState;
-  dispatch: React.Dispatch<EmailBuilderAction>;
-  selectedModuleId: string | null;
-  setSelectedModuleId: (id: string | null) => void;
-  activeTab: "build" | "preview";
-  setActiveTab: (tab: "build" | "preview") => void;
   // Add these new methods
   addModule: (type: ModuleType) => void;
   updateModule: (id: string, updates: Partial<ModuleUnion>) => void;
   deleteModule: (id: string) => void;
   updateSettings: (updates: Partial<EmailSettings>) => void;
   getSelectedModule: () => ModuleUnion | null;
+  reorderModules: (dragIndex: number, hoverIndex: number) => void;
+  addModuleToColumn: (
+    parentModuleId: string,
+    columnId: string,
+    moduleType: ModuleType
+  ) => void;
+  reorderModulesInColumn: (
+    parentModuleId: string,
+    columnId: string,
+    dragIndex: number,
+    hoverIndex: number
+  ) => void;
+  isCodeEditorOpen: boolean;
+  openCodeEditor: () => void;
+  closeCodeEditor: () => void;
+}
+
+export interface DragItem {
+  type: ModuleType;
+  moduleId?: string; // For reordering existing modules
+  dragType: "new" | "reorder"; // Distinguish between adding new modules and reordering
+  dragIndex?: number; // Store the original index for reordering
 }

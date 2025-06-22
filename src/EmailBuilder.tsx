@@ -10,57 +10,61 @@ import { ModuleLibrary } from "./components/ModuleLibrary";
 import { Canvas } from "./components/Canvas";
 import { Preview } from "./components/Preview";
 import { PropertyPanel } from "./components/PropertyPanel";
+import { CodeEditorModal } from "./components/CodeEditorModal";
 
 const EmailBuilderContent: React.FC = () => {
   const { activeTab, setActiveTab } = useEmailBuilderContext();
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      {/* Header */}
-      <header className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setActiveTab("build")}
-              className={`px-4 py-2 rounded ${
-                activeTab === "build" ? "bg-blue-500 text-white" : "bg-gray-200"
-              }`}
-            >
-              Build
-            </button>
-            <button
-              onClick={() => setActiveTab("preview")}
-              className={`px-4 py-2 rounded ${
-                activeTab === "preview"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200"
-              }`}
-            >
-              Preview
-            </button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-              Save
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1 flex">
-        {activeTab === "build" ? (
-          <>
-            <ModuleLibrary />
-            <Canvas />
-            <div className="w-80 bg-white border-l">
-              <PropertyPanel />
+    <>
+      <div className="h-screen flex flex-col bg-gray-100">
+        {/* Header */}
+        <header className="bg-white border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setActiveTab("build")}
+                className={`px-4 py-2 rounded ${
+                  activeTab === "build" ? "bg-blue-500 text-white" : "bg-gray-200"
+                }`}
+              >
+                Build
+              </button>
+              <button
+                onClick={() => setActiveTab("preview")}
+                className={`px-4 py-2 rounded ${
+                  activeTab === "preview"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200"
+                }`}
+              >
+                Preview
+              </button>
             </div>
-          </>
-        ) : (
-          <Preview />
-        )}
+            <div className="flex items-center space-x-2">
+              <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Save
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 flex">
+          {activeTab === "build" ? (
+            <>
+              <ModuleLibrary />
+              <Canvas />
+              <div className="w-80 bg-white border-l">
+                <PropertyPanel />
+              </div>
+            </>
+          ) : (
+            <Preview />
+          )}
+        </div>
       </div>
-    </div>
+      <CodeEditorModal />
+    </>
   );
 };
 

@@ -1,14 +1,20 @@
 // components/EditableModule.tsx
 import React, { useRef } from "react";
+import { useDrag, useDrop } from "react-dnd";
 import { useEmailBuilderContext } from "../hooks/useEmailBuilder";
-import type { ModuleUnion } from "../types/index";
+import type { ModuleUnion, DragItem } from "../types/index";
 import { sanitizeUrl } from "../utils/utils";
+import { ColumnDropZone } from "./ColumnDropZone";
+import parse from "html-react-parser";
+import DOMPurify from "dompurify";
 
 interface EditableModuleProps {
   module: ModuleUnion;
   isSelected: boolean;
   onSelect: (id: string) => void;
   isPreview?: boolean;
+  index?: number;
+  moveModule?: (dragIndex: number, hoverIndex: number) => void;
 }
 
 export const EditableModule: React.FC<EditableModuleProps> = ({
@@ -16,8 +22,17 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
   isSelected,
   onSelect,
   isPreview = false,
+  index,
+  moveModule,
 }) => {
-  const { updateModule, deleteModule } = useEmailBuilderContext();
+  const {
+    updateModule,
+    deleteModule,
+    selectedModuleId,
+    setSelectedModuleId,
+    reorderModulesInColumn,
+    openCodeEditor,
+  } = useEmailBuilderContext();
 
   const handleUpdate = (updates: Partial<ModuleUnion>) => {
     updateModule(module.id, updates);
@@ -28,6 +43,62 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [{ isDragging }, drag] = useDrag({
+    type: "module",
+    item: { 
+      type: module.type, 
+      moduleId: module.id, 
+      dragType: "reorder" as const,
+      dragIndex: index
+    } as DragItem,
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [{ isOver }, drop] = useDrop({
+    accept: "module",
+    hover: (item: DragItem, monitor) => {
+      if (!moveModule || item.dragType !== "reorder" || item.moduleId === module.id) {
+        return;
+      }
+
+      const dragIndex = item.dragIndex || 0;
+      const hoverIndex = index || 0;
+
+      // Don't replace items with themselves
+      if (dragIndex === hoverIndex) {
+        return;
+      }
+
+      // Only perform the move when the mouse has crossed half of the items height
+      const hoverBoundingRect = ref.current?.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect!.bottom - hoverBoundingRect!.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = clientOffset!.y - hoverBoundingRect!.top;
+
+      // Dragging downwards
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
+        return;
+      }
+
+      // Dragging upwards
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) {
+        return;
+      }
+
+      // Time to actually perform the action
+      moveModule(dragIndex, hoverIndex);
+      item.dragIndex = hoverIndex;
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+    }),
+  });
+
+  const ref = useRef<HTMLDivElement>(null);
+  drag(drop(ref));
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,36 +234,102 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
 
       case "image-text":
         return (
-          <div className="flex space-x-4">
-            <div className="w-1/2">
-              {module.image ? (
-                <img src={module.image} alt="" className="w-full" />
-              ) : (
-                <div className="w-full h-32 bg-gray-100 border flex items-center justify-center text-gray-400">
-                  Upload Image
-                </div>
-              )}
-            </div>
-            <div className="w-1/2">{module.text}</div>
-          </div>
-        );
-
-      case "columns":
-        return (
-          <div className="flex space-x-4">
-            {module.columns.map((col, i) => (
-              <div className="flex-1 border p-2" key={i}>
-                Column {i + 1}
+          <div className="flex" style={{ gap: `${module.gap}px` }}>
+            {module.columns.map((col) => (
+              <div key={col.id} className="flex-1">
+                {col.modules.map((innerModule, innerIndex) => (
+                  <EditableModule
+                    key={innerModule.id}
+                    module={innerModule}
+                    isSelected={selectedModuleId === innerModule.id}
+                    onSelect={setSelectedModuleId}
+                    isPreview={isPreview}
+                    index={innerIndex}
+                    moveModule={(dragIndex, hoverIndex) => {
+                      reorderModulesInColumn(
+                        module.id,
+                        col.id,
+                        dragIndex,
+                        hoverIndex
+                      );
+                    }}
+                  />
+                ))}
               </div>
             ))}
           </div>
         );
 
-      case "code":
+      case "columns": {
+        const layout = module.layout || "1";
+        const parts = layout.split(":").map(Number);
+        const totalParts = parts.reduce((a, b) => a + b, 0);
+        const widths =
+          totalParts > 0
+            ? parts.map((p) => `${(p / totalParts) * 100}%`)
+            : [];
+
         return (
-          <pre className="bg-black text-white p-2 text-sm rounded">
-            {module.code}
-          </pre>
+          <div
+            className="flex"
+            style={{
+              gap: `${module.gap}px`,
+              backgroundColor: module.backgroundColor,
+            }}
+          >
+            {module.columns.map((col, i) => (
+              <div key={col.id} style={{ flexBasis: widths[i] || "100%" }}>
+                {col.modules.length > 0 ? (
+                  col.modules.map((innerModule, innerIndex) => (
+                    <EditableModule
+                      key={innerModule.id}
+                      module={innerModule}
+                      isSelected={selectedModuleId === innerModule.id}
+                      onSelect={setSelectedModuleId}
+                      isPreview={isPreview}
+                      index={innerIndex}
+                      moveModule={(dragIndex, hoverIndex) => {
+                        reorderModulesInColumn(
+                          module.id,
+                          col.id,
+                          dragIndex,
+                          hoverIndex
+                        );
+                      }}
+                    />
+                  ))
+                ) : (
+                  <ColumnDropZone
+                    parentModuleId={module.id}
+                    columnId={col.id}
+                    className="h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-500"
+                  >
+                    Add Module
+                  </ColumnDropZone>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      case "code":
+        if (isPreview) {
+          const cleanHtml = DOMPurify.sanitize(module.code);
+          return <div className="prose">{parse(cleanHtml)}</div>;
+        }
+        return (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(module.id);
+              openCodeEditor();
+            }}
+          >
+            <pre className="bg-black text-white p-2 text-sm rounded cursor-pointer">
+              {module.code}
+            </pre>
+          </div>
         );
 
       case "social":
@@ -219,13 +356,28 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
 
   return (
     <div
+      ref={ref}
       className={`relative border-2 rounded p-2 cursor-pointer transition-colors ${
         isSelected
           ? "border-blue-500 bg-blue-50"
           : "border-transparent hover:border-gray-300"
+      } ${isDragging ? "opacity-50" : ""} ${
+        isOver ? "border-green-400 bg-green-50" : ""
       }`}
-      onClick={() => onSelect(module.id)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(module.id);
+      }}
     >
+      {/* Drag Handle */}
+      <div className="absolute top-1 left-1 w-4 h-4 bg-gray-300 rounded cursor-move opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+        <div className="w-2 h-2 flex flex-col justify-between">
+          <div className="w-full h-0.5 bg-gray-600"></div>
+          <div className="w-full h-0.5 bg-gray-600"></div>
+          <div className="w-full h-0.5 bg-gray-600"></div>
+        </div>
+      </div>
+      
       {renderModule()}
       {isSelected && (
         <button

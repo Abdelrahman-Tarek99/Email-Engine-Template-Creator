@@ -8,14 +8,8 @@ import type {
   ModuleType,
   ImageModule,
   TextModule,
-  ButtonModule,
-  DividerModule,
-  SpacerModule,
-  ImageTextModule,
   ColumnsModule,
-  CodeModule,
-  SocialModule,
-  UnsubscribeModule,
+  ImageTextModule,
 } from "../types/index";
 
 const EmailBuilderContext = createContext<EmailBuilderContextType | undefined>(
@@ -31,6 +25,99 @@ const initialState: EmailBuilderState = {
     contentWidth: 600,
   },
 };
+
+const findAndRemoveModule = (
+  modules: ModuleUnion[],
+  id: string
+): ModuleUnion[] => {
+  const newModules = [];
+  for (const module of modules) {
+    if (module.id === id) {
+      continue;
+    }
+    if (module.type === "columns" || module.type === "image-text") {
+      const updatedColumns = module.columns.map((column) => ({
+        ...column,
+        modules: findAndRemoveModule(column.modules, id),
+      }));
+      newModules.push({ ...module, columns: updatedColumns });
+    } else {
+      newModules.push(module);
+    }
+  }
+  return newModules;
+};
+
+const findAndUpdateModule = (
+  modules: ModuleUnion[],
+  id: string,
+  updates: Partial<ModuleUnion>
+): ModuleUnion[] => {
+  return modules.map((module) => {
+    if (module.id === id) {
+      const updatedModule = { ...module, ...updates };
+
+      if (
+        updatedModule.type === "columns" &&
+        typeof updatedModule.layout === "string" &&
+        Array.isArray(updatedModule.columns)
+      ) {
+        const newLayout = updatedModule.layout;
+        const newColumnCount = newLayout.includes(":")
+          ? newLayout.split(":").length
+          : parseInt(newLayout, 10);
+        const currentColumnCount = updatedModule.columns.length;
+
+        if (newColumnCount > currentColumnCount) {
+          const additionalColumns = Array.from(
+            { length: newColumnCount - currentColumnCount },
+            () => ({ id: uuidv4(), modules: [] })
+          );
+          updatedModule.columns = [
+            ...updatedModule.columns,
+            ...additionalColumns,
+          ];
+        } else if (newColumnCount < currentColumnCount) {
+          updatedModule.columns = updatedModule.columns.slice(
+            0,
+            newColumnCount
+          );
+        }
+      }
+
+      return updatedModule as ModuleUnion;
+    }
+    if (
+      (module.type === "columns" || module.type === "image-text") &&
+      Array.isArray(module.columns)
+    ) {
+      const updatedColumns = module.columns.map((column) => ({
+        ...column,
+        modules: findAndUpdateModule(column.modules, id, updates),
+      }));
+      return { ...module, columns: updatedColumns };
+    }
+    return module;
+  });
+};
+
+const findModuleById = (
+  modules: ModuleUnion[],
+  id: string
+): ModuleUnion | null => {
+  for (const module of modules) {
+    if (module.id === id) {
+      return module;
+    }
+    if (module.type === "columns" || module.type === "image-text") {
+      const found = findModuleById(module.columns.flatMap(c => c.modules), id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
 
 const templateReducer = (
   state: EmailBuilderState,
@@ -48,18 +135,16 @@ const templateReducer = (
     case "UPDATE_MODULE":
       return {
         ...state,
-        modules: state.modules.map((module) =>
-          module.id === action.payload.id
-            ? ({ ...module, ...action.payload.updates } as ModuleUnion)
-            : module
+        modules: findAndUpdateModule(
+          state.modules,
+          action.payload.id,
+          action.payload.updates
         ),
       };
     case "DELETE_MODULE":
       return {
         ...state,
-        modules: state.modules.filter(
-          (module) => module.id !== action.payload.id
-        ),
+        modules: findAndRemoveModule(state.modules, action.payload.id),
       };
     case "REORDER_MODULES":
       return {
@@ -81,6 +166,7 @@ export const useEmailBuilder = () => {
   const [state, dispatch] = useReducer(templateReducer, initialState);
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"build" | "preview">("build");
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
 
   const addModule = (type: ModuleType) => {
     const moduleDefaults = getModuleDefaults(type);
@@ -107,6 +193,55 @@ export const useEmailBuilder = () => {
     }
   };
 
+  const addModuleToColumn = (
+    parentModuleId: string,
+    columnId: string,
+    moduleType: ModuleType
+  ) => {
+    const newModule = {
+      ...(getModuleDefaults(moduleType) as ModuleUnion),
+      id: uuidv4(),
+    };
+
+    const parentModule = state.modules.find(
+      (m) => m.id === parentModuleId
+    ) as ColumnsModule | ImageTextModule | undefined;
+
+    if (parentModule) {
+      const updatedColumns = parentModule.columns.map((c) => {
+        if (c.id === columnId) {
+          return { ...c, modules: [...c.modules, newModule] };
+        }
+        return c;
+      });
+      updateModule(parentModuleId, { columns: updatedColumns });
+    }
+  };
+
+  const reorderModulesInColumn = (
+    parentModuleId: string,
+    columnId: string,
+    dragIndex: number,
+    hoverIndex: number
+  ) => {
+    const parentModule = state.modules.find(
+      (m) => m.id === parentModuleId
+    ) as ColumnsModule | ImageTextModule | undefined;
+
+    if (parentModule) {
+      const updatedColumns = parentModule.columns.map((c) => {
+        if (c.id === columnId) {
+          const newModules = [...c.modules];
+          const [draggedItem] = newModules.splice(dragIndex, 1);
+          newModules.splice(hoverIndex, 0, draggedItem);
+          return { ...c, modules: newModules };
+        }
+        return c;
+      });
+      updateModule(parentModuleId, { columns: updatedColumns });
+    }
+  };
+
   const updateSettings = (updates: Partial<EmailBuilderState["settings"]>) => {
     dispatch({
       type: "UPDATE_SETTINGS",
@@ -115,8 +250,24 @@ export const useEmailBuilder = () => {
   };
 
   const getSelectedModule = () => {
-    return state.modules.find((m) => m.id === selectedModuleId) || null;
+    if (!selectedModuleId) return null;
+    return findModuleById(state.modules, selectedModuleId);
   };
+
+  const reorderModules = (dragIndex: number, hoverIndex: number) => {
+    const newModules = [...state.modules];
+    const draggedModule = newModules[dragIndex];
+    newModules.splice(dragIndex, 1);
+    newModules.splice(hoverIndex, 0, draggedModule);
+    
+    dispatch({
+      type: "REORDER_MODULES",
+      payload: newModules,
+    });
+  };
+
+  const openCodeEditor = () => setIsCodeEditorOpen(true);
+  const closeCodeEditor = () => setIsCodeEditorOpen(false);
 
   return {
     state,
@@ -130,6 +281,12 @@ export const useEmailBuilder = () => {
     deleteModule,
     updateSettings,
     getSelectedModule,
+    reorderModules,
+    addModuleToColumn,
+    reorderModulesInColumn,
+    isCodeEditorOpen,
+    openCodeEditor,
+    closeCodeEditor,
   };
 };
 
@@ -138,7 +295,6 @@ const getModuleDefaults = (type: ModuleType): Omit<ModuleUnion, "id"> => {
     case "text":
       return {
         type: "text",
-        id: uuidv4(),
         content: "Enter your text here...",
         fontSize: 16,
         fontFamily: "Arial, sans-serif",
@@ -151,7 +307,7 @@ const getModuleDefaults = (type: ModuleType): Omit<ModuleUnion, "id"> => {
         backgroundColor: "#ffffff",
         highlightColor: "#ffffff",
         padding: { top: 18, right: 0, bottom: 18, left: 0 },
-      } as TextModule;
+      };
 
     case "image":
       return {
@@ -161,7 +317,7 @@ const getModuleDefaults = (type: ModuleType): Omit<ModuleUnion, "id"> => {
         width: "100%",
         height: "auto",
         alignment: "center",
-      } as ImageModule;
+      };
 
     case "button":
       return {
@@ -185,7 +341,7 @@ const getModuleDefaults = (type: ModuleType): Omit<ModuleUnion, "id"> => {
         fontFamily: "Arial, sans-serif",
         fontWeight: "normal",
         fontSize: 14,
-      } as ButtonModule;
+      };
 
     case "divider":
       return {
@@ -193,34 +349,58 @@ const getModuleDefaults = (type: ModuleType): Omit<ModuleUnion, "id"> => {
         height: 1,
         color: "#cccccc",
         style: "solid" as const,
-      } as DividerModule;
+      };
 
     case "spacer":
       return {
         type: "spacer",
         height: 30,
         backgroundColor: "transparent",
-      } as SpacerModule;
+      };
 
     case "image-text":
       return {
         type: "image-text",
-        image: "",
-        text: "Your caption or content...",
-      } as ImageTextModule;
+        gap: 16,
+        columns: [
+          {
+            id: uuidv4(),
+            modules: [
+              {
+                ...(getModuleDefaults("image") as Omit<ImageModule, "id">),
+                id: uuidv4(),
+              },
+            ],
+          },
+          {
+            id: uuidv4(),
+            modules: [
+              {
+                ...(getModuleDefaults("text") as Omit<TextModule, "id">),
+                id: uuidv4(),
+              },
+            ],
+          },
+        ],
+      };
 
     case "columns":
       return {
         type: "columns",
-        columns: [] as ModuleUnion[],
-      } as ColumnsModule;
+        columns: [
+          { id: uuidv4(), modules: [] },
+          { id: uuidv4(), modules: [] },
+        ],
+        layout: "2",
+        gap: 16,
+      };
 
     case "code":
       return {
         type: "code",
         code: "// your code here",
         language: "html",
-      } as CodeModule;
+      };
 
     case "social":
       return {
@@ -229,13 +409,13 @@ const getModuleDefaults = (type: ModuleType): Omit<ModuleUnion, "id"> => {
           { platform: "facebook", url: "" },
           { platform: "twitter", url: "" },
         ],
-      } as SocialModule;
+      };
 
     case "unsubscribe":
       return {
         type: "unsubscribe",
         label: "Unsubscribe - Manage Preferences",
-      } as UnsubscribeModule;
+      };
 
     default:
       throw new Error(`Unknown module type: ${type}`);

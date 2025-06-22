@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useDrag } from "react-dnd";
-import type { ModuleType } from "../types/index";
+import type { ModuleType, DragItem } from "../types/index";
 
 interface DraggableModuleProps {
   type: ModuleType;
@@ -13,17 +13,21 @@ export const DraggableModule: React.FC<DraggableModuleProps> = ({
   icon,
   label,
 }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  
   const [{ isDragging }, drag] = useDrag({
     type: "module",
-    item: { type },
+    item: { type, dragType: "new" } as DragItem,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
 
+  drag(ref);
+
   return (
     <div
-      ref={drag as any}
+      ref={ref}
       className={`p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-move hover:border-blue-400 transition-colors ${
         isDragging ? "opacity-50" : ""
       }`}

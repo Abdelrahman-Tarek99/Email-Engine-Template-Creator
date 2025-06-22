@@ -455,6 +455,74 @@ export const PropertyPanel: React.FC = () => {
             </div>
           </div>
         );
+      case "columns": {
+        const layouts = [
+          { id: "1", label: "1 Column" },
+          { id: "2", label: "2 Columns" },
+          { id: "3", label: "3 Columns" },
+          { id: "4", label: "4 Columns" },
+          { id: "1:2", label: "1:2 Columns" },
+          { id: "2:1", label: "2:1 Columns" },
+          { id: "1:3", label: "1:3 Columns" },
+          { id: "3:1", label: "3:1 Columns" },
+        ];
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Column Layout
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {layouts.map((layout) => (
+                  <button
+                    key={layout.id}
+                    onClick={() =>
+                      handleUpdate({
+                        layout: layout.id as ModuleUnion["layout"],
+                      })
+                    }
+                    className={`p-2 border rounded text-center ${
+                      selectedModule.layout === layout.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    <span className="text-sm">{layout.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Background Color
+              </label>
+              <input
+                type="color"
+                value={selectedModule.backgroundColor || "#ffffff"}
+                onChange={(e) =>
+                  handleUpdate({ backgroundColor: e.target.value })
+                }
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Column Gap (px)
+              </label>
+              <input
+                type="number"
+                value={selectedModule.gap || 0}
+                onChange={(e) =>
+                  handleUpdate({ gap: parseInt(e.target.value) })
+                }
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+          </div>
+        );
+      }
       case "spacer":
         return (
           <div className="space-y-4">

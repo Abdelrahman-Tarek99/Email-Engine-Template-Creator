@@ -4,7 +4,7 @@ import { DropZone } from "./DropZone";
 import { EditableModule } from "./EditableModule";
 
 export const Canvas: React.FC = () => {
-  const { state, selectedModuleId, setSelectedModuleId, updateSettings } =
+  const { state, selectedModuleId, setSelectedModuleId, updateSettings, reorderModules } =
     useEmailBuilderContext();
 
   return (
@@ -28,10 +28,12 @@ export const Canvas: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              {state.modules.map((module) => (
+              {state.modules.map((module, index) => (
                 <EditableModule
                   key={module.id}
                   module={module}
+                  index={index}
+                  moveModule={reorderModules}
                   isSelected={selectedModuleId === module.id}
                   onSelect={setSelectedModuleId}
                 />
