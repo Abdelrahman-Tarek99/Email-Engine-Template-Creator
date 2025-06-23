@@ -7,6 +7,7 @@ import { sanitizeUrl } from "../utils/utils";
 import { ColumnDropZone } from "./ColumnDropZone";
 import parse from "html-react-parser";
 import DOMPurify from "dompurify";
+import { IconBrandFacebook, IconBrandInstagram, IconBrandX, IconBrandPinterest, IconBrandLinkedin, IconBrandTiktok, IconGripVertical, IconTrash } from '@tabler/icons-react';
 
 interface EditableModuleProps {
   module: ModuleUnion;
@@ -313,11 +314,15 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
         );
       }
 
-      case "code":
+      case "code": {
+        const sanitizedCode = DOMPurify.sanitize(module.code, {
+          ADD_TAGS: ["h1", "button"],
+        });
+
         if (isPreview) {
-          const cleanHtml = DOMPurify.sanitize(module.code);
-          return <div className="prose">{parse(cleanHtml)}</div>;
+          return <div className="browser-defaults">{parse(sanitizedCode)}</div>;
         }
+
         return (
           <div
             onClick={(e) => {
@@ -325,23 +330,54 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
               onSelect(module.id);
               openCodeEditor();
             }}
+            className="browser-defaults p-2 rounded border border-gray-300 cursor-pointer"
           >
-            <pre className="bg-black text-white p-2 text-sm rounded cursor-pointer">
-              {module.code}
-            </pre>
+            {parse(sanitizedCode)}
           </div>
         );
+      }
 
-      case "social":
+      case "social": {
+        // Supported platforms and their brand colors
+        const platforms = [
+          { name: "facebook", Icon: IconBrandFacebook, color: "#1877F3" },
+          { name: "instagram", Icon: IconBrandInstagram, color: "#E4405F" },
+          { name: "x", Icon: IconBrandX, color: "#000000" },
+          { name: "pinterest", Icon: IconBrandPinterest, color: "#E60023" },
+          { name: "linkedin", Icon: IconBrandLinkedin, color: "#0A66C2" },
+          { name: "tiktok", Icon: IconBrandTiktok, color: "#000000" },
+        ];
+        // Map links by platform for quick lookup
+        const linksMap = Object.fromEntries((module.links || []).map(l => [l.platform, l.url]));
         return (
-          <div className="flex space-x-4">
-            {module.links.map((link, i) => (
-              <a href={link.url} key={i} className="text-blue-500 underline">
-                {link.platform}
-              </a>
-            ))}
+          <div className="flex space-x-2 items-center">
+            {platforms.map(({ name, Icon, color }) => {
+              const url = linksMap[name] || "";
+              const isActive = !!url;
+              const iconColor = isActive ? color : "#B0B0B0";
+              const icon = <Icon size={28} color={iconColor} />;
+              if (isActive) {
+                return (
+                  <a
+                    key={name}
+                    href={url}
+                    target={isPreview ? "_blank" : undefined}
+                    rel={isPreview ? "noopener noreferrer" : undefined}
+                    style={{ display: "inline-flex", alignItems: "center" }}
+                  >
+                    {icon}
+                  </a>
+                );
+              }
+              return (
+                <span key={name} style={{ display: "inline-flex", alignItems: "center", opacity: 0.6 }}>
+                  {icon}
+                </span>
+              );
+            })}
           </div>
         );
+      }
 
       case "unsubscribe":
         return <div className="text-sm text-gray-600">{module.label}</div>;
@@ -357,7 +393,7 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
   return (
     <div
       ref={ref}
-      className={`relative border-2 rounded p-2 cursor-pointer transition-colors ${
+      className={`group relative border-2 rounded p-2 cursor-pointer transition-colors ${
         isSelected
           ? "border-blue-500 bg-blue-50"
           : "border-transparent hover:border-gray-300"
@@ -369,15 +405,10 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
         onSelect(module.id);
       }}
     >
-      {/* Drag Handle */}
-      <div className="absolute top-1 left-1 w-4 h-4 bg-gray-300 rounded cursor-move opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-        <div className="w-2 h-2 flex flex-col justify-between">
-          <div className="w-full h-0.5 bg-gray-600"></div>
-          <div className="w-full h-0.5 bg-gray-600"></div>
-          <div className="w-full h-0.5 bg-gray-600"></div>
-        </div>
+      {/* Drag Handle (always visible on hover) */}
+      <div className="absolute top-1 left-1 text-gray-400 cursor-move opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1 z-10">
+        <IconGripVertical size={16} />
       </div>
-      
       {renderModule()}
       {isSelected && (
         <button
@@ -385,9 +416,9 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
             e.stopPropagation();
             handleDelete();
           }}
-          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
         >
-          ×
+          <IconTrash size={14} />
         </button>
       )}
     </div>

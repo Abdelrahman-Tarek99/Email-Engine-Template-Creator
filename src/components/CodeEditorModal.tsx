@@ -52,8 +52,12 @@ export const CodeEditorModal: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Preview</label>
-            <div className="prose w-full h-96 p-2 border rounded overflow-auto">
-              {parse(DOMPurify.sanitize(code))}
+            <div className="browser-defaults prose w-full h-96 p-2 border rounded overflow-auto">
+              {parse(
+                DOMPurify.sanitize(code, {
+                  ADD_TAGS: ["h1", "button"],
+                })
+              )}
             </div>
           </div>
         </div>

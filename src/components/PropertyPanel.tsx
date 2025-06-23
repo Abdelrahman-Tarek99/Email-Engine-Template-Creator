@@ -554,7 +554,48 @@ export const PropertyPanel: React.FC = () => {
             </div>
           </div>
         );
-
+      case "social": {
+        const platforms = [
+          { name: "facebook", label: "Facebook Page URL" },
+          { name: "instagram", label: "Instagram Page URL" },
+          { name: "x", label: "X Page URL" },
+          { name: "pinterest", label: "Pinterest Page URL" },
+          { name: "linkedin", label: "LinkedIn Page URL" },
+          { name: "tiktok", label: "TikTok Page URL" },
+        ];
+        // Map links by platform for quick lookup
+        const linksMap = Object.fromEntries((selectedModule.links || []).map(l => [l.platform, l.url]));
+        const handleLinkChange = (platform: string, url: string) => {
+          // Update or remove the link for the given platform
+          const newLinks = platforms.map(({ name }) => ({
+            platform: name,
+            url: name === platform ? url : linksMap[name] || ""
+          }));
+          handleUpdate({ links: newLinks });
+        };
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Social Icon URLs</label>
+              <p className="text-xs text-gray-500 mb-2">
+                Enter the profile or page URL for any social networks you'd like to include. Options that are left empty won't appear in the module.
+              </p>
+              {platforms.map(({ name, label }) => (
+                <div key={name} className="mb-2">
+                  <label className="block text-xs font-semibold mb-1">{label}</label>
+                  <input
+                    type="url"
+                    value={linksMap[name] || ""}
+                    onChange={e => handleLinkChange(name, e.target.value)}
+                    className="w-full border rounded px-3 py-2 text-sm"
+                    placeholder={label}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
       default:
         return <div>No properties available for this module type</div>;
     }

@@ -4,14 +4,14 @@ import type { ModuleType, DragItem } from "../types/index";
 
 interface DraggableModuleProps {
   type: ModuleType;
-  icon: string;
   label: string;
+  icon: React.ReactNode;
 }
 
 export const DraggableModule: React.FC<DraggableModuleProps> = ({
   type,
-  icon,
   label,
+  icon,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   
@@ -28,14 +28,11 @@ export const DraggableModule: React.FC<DraggableModuleProps> = ({
   return (
     <div
       ref={ref}
-      className={`p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-move hover:border-blue-400 transition-colors ${
-        isDragging ? "opacity-50" : ""
-      }`}
+      className="flex flex-col items-center justify-center p-4 border rounded-lg cursor-grab bg-white hover:bg-gray-50 hover:border-blue-500 transition-all"
+      style={{ opacity: isDragging ? 0.5 : 1 }}
     >
-      <div className="flex flex-col items-center space-y-2">
-        <div className="text-2xl">{icon}</div>
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-      </div>
+      <div className="text-gray-600">{icon}</div>
+      <div className="text-sm mt-2 text-gray-700">{label}</div>
     </div>
   );
 };
