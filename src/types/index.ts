@@ -187,6 +187,17 @@ export interface EmailBuilderContextType {
   isCodeEditorOpen: boolean;
   openCodeEditor: () => void;
   closeCodeEditor: () => void;
+  // Export functions
+  generateHTML: () => string;
+  exportHTML: (filename?: string) => void;
+  copyHTML: () => Promise<boolean>;
+  getEmailData: () => {
+    subject: string;
+    preheader: string;
+    html: string;
+    modules: ModuleUnion[];
+    settings: EmailSettings;
+  };
 }
 
 export interface DragItem {

@@ -11,6 +11,7 @@ import type {
   ColumnsModule,
   ImageTextModule,
 } from "../types/index";
+import { generateEmailHTML, downloadHTML, copyToClipboard } from "../utils/utils";
 
 const EmailBuilderContext = createContext<EmailBuilderContextType | undefined>(
   undefined
@@ -106,10 +107,11 @@ const findModuleById = (
   id: string
 ): ModuleUnion | null => {
   for (const module of modules) {
+    if (!module || !module.id) continue;
     if (module.id === id) {
       return module;
     }
-    if (module.type === "columns" || module.type === "image-text") {
+    if ((module.type === "columns" || module.type === "image-text") && Array.isArray(module.columns)) {
       const found = findModuleById(module.columns.flatMap(c => c.modules), id);
       if (found) {
         return found;
@@ -294,6 +296,34 @@ export const useEmailBuilder = () => {
   const openCodeEditor = () => setIsCodeEditorOpen(true);
   const closeCodeEditor = () => setIsCodeEditorOpen(false);
 
+  // Export functions
+  const generateHTML = (): string => {
+    return generateEmailHTML(state.modules, state.settings);
+  };
+
+  const exportHTML = (filename?: string) => {
+    const html = generateHTML();
+    const defaultFilename = state.settings.subject 
+      ? `${state.settings.subject.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.html`
+      : 'email-template.html';
+    downloadHTML(html, filename || defaultFilename);
+  };
+
+  const copyHTML = async (): Promise<boolean> => {
+    const html = generateHTML();
+    return await copyToClipboard(html);
+  };
+
+  const getEmailData = () => {
+    return {
+      subject: state.settings.subject,
+      preheader: state.settings.preheader,
+      html: generateHTML(),
+      modules: state.modules,
+      settings: state.settings,
+    };
+  };
+
   return {
     state,
     dispatch,
@@ -313,6 +343,10 @@ export const useEmailBuilder = () => {
     isCodeEditorOpen,
     openCodeEditor,
     closeCodeEditor,
+    generateHTML,
+    exportHTML,
+    copyHTML,
+    getEmailData,
   };
 };
 

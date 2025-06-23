@@ -1,5 +1,5 @@
 // EmailBuilder.tsx (Main Component)
-import React from "react";
+import React, { useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
@@ -11,9 +11,12 @@ import { Canvas } from "./components/Canvas";
 import { Preview } from "./components/Preview";
 import { PropertyPanel } from "./components/PropertyPanel";
 import { CodeEditorModal } from "./components/CodeEditorModal";
+import { ExportModal } from "./components/ExportModal";
+import { IconDownload } from '@tabler/icons-react';
 
 const EmailBuilderContent: React.FC = () => {
   const { activeTab, setActiveTab } = useEmailBuilderContext();
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   return (
     <>
@@ -42,8 +45,12 @@ const EmailBuilderContent: React.FC = () => {
               </button>
             </div>
             <div className="flex items-center space-x-2">
-              <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                Save
+              <button 
+                onClick={() => setIsExportModalOpen(true)}
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center space-x-2"
+              >
+                <IconDownload size={16} />
+                <span>Export</span>
               </button>
             </div>
           </div>
@@ -64,6 +71,10 @@ const EmailBuilderContent: React.FC = () => {
         </div>
       </div>
       <CodeEditorModal />
+      <ExportModal 
+        isOpen={isExportModalOpen} 
+        onClose={() => setIsExportModalOpen(false)} 
+      />
     </>
   );
 };

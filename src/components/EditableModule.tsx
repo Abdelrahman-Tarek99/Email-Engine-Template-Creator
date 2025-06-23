@@ -281,24 +281,26 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
                     : ''
                 }`}
               >
-                {col.modules.map((innerModule, innerIndex) => (
-                  <EditableModule
-                    key={innerModule.id}
-                    module={innerModule}
-                    isSelected={selectedModuleId === innerModule.id}
-                    onSelect={setSelectedModuleId}
-                    isPreview={isPreview}
-                    index={innerIndex}
-                    moveModule={(dragIndex, hoverIndex) => {
-                      reorderModulesInColumn(
-                        module.id,
-                        col.id,
-                        dragIndex,
-                        hoverIndex
-                      );
-                    }}
-                  />
-                ))}
+                {col.modules
+                  .filter((innerModule): innerModule is ModuleUnion => !!innerModule && !!innerModule.id)
+                  .map((innerModule, innerIndex) => (
+                    <EditableModule
+                      key={innerModule.id}
+                      module={innerModule}
+                      isSelected={selectedModuleId === innerModule.id}
+                      onSelect={setSelectedModuleId}
+                      isPreview={isPreview}
+                      index={innerIndex}
+                      moveModule={(dragIndex, hoverIndex) => {
+                        reorderModulesInColumn(
+                          module.id,
+                          col.id,
+                          dragIndex,
+                          hoverIndex
+                        );
+                      }}
+                    />
+                  ))}
               </div>
             ))}
           </div>
@@ -415,24 +417,26 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
             {module.columns.map((col, i) => (
               <div key={col.id} style={{ flexBasis: widths[i] || "100%" }}>
                 {col.modules.length > 0 ? (
-                  col.modules.map((innerModule, innerIndex) => (
-                    <EditableModule
-                      key={innerModule.id}
-                      module={innerModule}
-                      isSelected={selectedModuleId === innerModule.id}
-                      onSelect={setSelectedModuleId}
-                      isPreview={isPreview}
-                      index={innerIndex}
-                      moveModule={(dragIndex, hoverIndex) => {
-                        reorderModulesInColumn(
-                          module.id,
-                          col.id,
-                          dragIndex,
-                          hoverIndex
-                        );
-                      }}
-                    />
-                  ))
+                  col.modules
+                    .filter((innerModule): innerModule is ModuleUnion => !!innerModule && !!innerModule.id)
+                    .map((innerModule, innerIndex) => (
+                      <EditableModule
+                        key={innerModule.id}
+                        module={innerModule}
+                        isSelected={selectedModuleId === innerModule.id}
+                        onSelect={setSelectedModuleId}
+                        isPreview={isPreview}
+                        index={innerIndex}
+                        moveModule={(dragIndex, hoverIndex) => {
+                          reorderModulesInColumn(
+                            module.id,
+                            col.id,
+                            dragIndex,
+                            hoverIndex
+                          );
+                        }}
+                      />
+                    ))
                 ) : (
                   <ColumnDropZone
                     parentModuleId={module.id}
