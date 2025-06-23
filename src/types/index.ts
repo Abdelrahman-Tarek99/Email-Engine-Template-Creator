@@ -155,7 +155,8 @@ export type EmailBuilderAction =
     }
   | { type: "DELETE_MODULE"; payload: { id: string } }
   | { type: "REORDER_MODULES"; payload: ModuleUnion[] }
-  | { type: "UPDATE_SETTINGS"; payload: Partial<EmailSettings> };
+  | { type: "UPDATE_SETTINGS"; payload: Partial<EmailSettings> }
+  | { type: "SWAP_COLUMNS"; payload: { moduleId: string; columnIndex1: number; columnIndex2: number } };
 
 export interface EmailBuilderContextType {
   state: EmailBuilderState;
@@ -182,6 +183,7 @@ export interface EmailBuilderContextType {
     dragIndex: number,
     hoverIndex: number
   ) => void;
+  swapColumns: (moduleId: string, columnIndex1: number, columnIndex2: number) => void;
   isCodeEditorOpen: boolean;
   openCodeEditor: () => void;
   closeCodeEditor: () => void;

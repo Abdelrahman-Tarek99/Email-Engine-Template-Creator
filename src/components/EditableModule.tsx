@@ -1,5 +1,5 @@
 // components/EditableModule.tsx
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { useEmailBuilderContext } from "../hooks/useEmailBuilder";
 import type { ModuleUnion, DragItem } from "../types/index";
@@ -7,7 +7,7 @@ import { sanitizeUrl } from "../utils/utils";
 import { ColumnDropZone } from "./ColumnDropZone";
 import parse from "html-react-parser";
 import DOMPurify from "dompurify";
-import { IconBrandFacebook, IconBrandInstagram, IconBrandX, IconBrandPinterest, IconBrandLinkedin, IconBrandTiktok, IconGripVertical, IconTrash } from '@tabler/icons-react';
+import { IconBrandFacebook, IconBrandInstagram, IconBrandX, IconBrandPinterest, IconBrandLinkedin, IconBrandTiktok, IconGripVertical, IconTrash, IconArrowsExchange } from '@tabler/icons-react';
 
 interface EditableModuleProps {
   module: ModuleUnion;
@@ -32,8 +32,31 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
     selectedModuleId,
     setSelectedModuleId,
     reorderModulesInColumn,
+    swapColumns,
     openCodeEditor,
   } = useEmailBuilderContext();
+
+  const [showSwapDropdown, setShowSwapDropdown] = useState(false);
+  const [swapColumn1, setSwapColumn1] = useState(0);
+  const [swapColumn2, setSwapColumn2] = useState(1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowSwapDropdown(false);
+      }
+    };
+
+    if (showSwapDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSwapDropdown]);
 
   const handleUpdate = (updates: Partial<ModuleUnion>) => {
     updateModule(module.id, updates);
@@ -235,9 +258,29 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
 
       case "image-text":
         return (
-          <div className="flex" style={{ gap: `${module.gap}px` }}>
+          <div className="flex relative group" style={{ gap: `${module.gap}px` }}>
+            {/* Swap Button for Image-Text */}
+            {!isPreview && module.columns.length === 2 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  swapColumns(module.id, 0, 1);
+                }}
+                className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                title="Swap image and text positions"
+              >
+                <IconArrowsExchange size={12} />
+              </button>
+            )}
             {module.columns.map((col) => (
-              <div key={col.id} className="flex-1">
+              <div 
+                key={col.id} 
+                className={`flex-1 transition-all duration-200 ${
+                  !isPreview && module.columns.length === 2 
+                    ? 'group-hover:bg-blue-50 group-hover:border-blue-200 border border-transparent rounded p-1' 
+                    : ''
+                }`}
+              >
                 {col.modules.map((innerModule, innerIndex) => (
                   <EditableModule
                     key={innerModule.id}
@@ -272,12 +315,103 @@ export const EditableModule: React.FC<EditableModuleProps> = ({
 
         return (
           <div
-            className="flex"
+            className="flex relative group"
             style={{
               gap: `${module.gap}px`,
               backgroundColor: module.backgroundColor,
             }}
           >
+            {/* Swap Button for Columns (only show if more than 1 column) */}
+            {!isPreview && module.columns.length > 1 && (
+              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                {module.columns.length === 2 ? (
+                  // Simple swap for 2 columns
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      swapColumns(module.id, 0, 1);
+                    }}
+                    className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-blue-600"
+                    title="Swap columns"
+                  >
+                    <IconArrowsExchange size={12} />
+                  </button>
+                ) : (
+                  // Dropdown for more than 2 columns
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSwapDropdown(!showSwapDropdown);
+                      }}
+                      className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-blue-600"
+                      title="Swap columns"
+                    >
+                      <IconArrowsExchange size={12} />
+                    </button>
+                    {showSwapDropdown && (
+                      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-3 min-w-48 z-30">
+                        <div className="text-sm font-medium mb-2">Swap Columns</div>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Column 1:</label>
+                            <select
+                              value={swapColumn1}
+                              onChange={(e) => setSwapColumn1(parseInt(e.target.value))}
+                              className="w-full text-xs border rounded px-2 py-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {module.columns.map((col, index) => (
+                                <option key={index} value={index}>
+                                  Column {index + 1} ({col.modules.length} items)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Column 2:</label>
+                            <select
+                              value={swapColumn2}
+                              onChange={(e) => setSwapColumn2(parseInt(e.target.value))}
+                              className="w-full text-xs border rounded px-2 py-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {module.columns.map((col, index) => (
+                                <option key={index} value={index}>
+                                  Column {index + 1} ({col.modules.length} items)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {swapColumn1 === swapColumn2 && (
+                            <div className="text-xs text-red-500 text-center">
+                              Select different columns to swap
+                            </div>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (swapColumn1 !== swapColumn2) {
+                                swapColumns(module.id, swapColumn1, swapColumn2);
+                              }
+                              setShowSwapDropdown(false);
+                            }}
+                            className={`w-full text-xs py-1 rounded ${
+                              swapColumn1 === swapColumn2
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-500 text-white hover:bg-blue-600'
+                            }`}
+                            disabled={swapColumn1 === swapColumn2}
+                          >
+                            Swap
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {module.columns.map((col, i) => (
               <div key={col.id} style={{ flexBasis: widths[i] || "100%" }}>
                 {col.modules.length > 0 ? (

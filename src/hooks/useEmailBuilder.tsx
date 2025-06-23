@@ -156,6 +156,24 @@ const templateReducer = (
         ...state,
         settings: { ...state.settings, ...action.payload },
       };
+    case "SWAP_COLUMNS":
+      return {
+        ...state,
+        modules: state.modules.map((module) => {
+          if (module.id === action.payload.moduleId && 
+              (module.type === "columns" || module.type === "image-text")) {
+            const newColumns = [...module.columns];
+            const [column1, column2] = [
+              newColumns[action.payload.columnIndex1],
+              newColumns[action.payload.columnIndex2]
+            ];
+            newColumns[action.payload.columnIndex1] = column2;
+            newColumns[action.payload.columnIndex2] = column1;
+            return { ...module, columns: newColumns };
+          }
+          return module;
+        }),
+      };
 
     default:
       return state;
@@ -242,6 +260,13 @@ export const useEmailBuilder = () => {
     }
   };
 
+  const swapColumns = (moduleId: string, columnIndex1: number, columnIndex2: number) => {
+    dispatch({
+      type: "SWAP_COLUMNS",
+      payload: { moduleId, columnIndex1, columnIndex2 },
+    });
+  };
+
   const updateSettings = (updates: Partial<EmailBuilderState["settings"]>) => {
     dispatch({
       type: "UPDATE_SETTINGS",
@@ -284,6 +309,7 @@ export const useEmailBuilder = () => {
     reorderModules,
     addModuleToColumn,
     reorderModulesInColumn,
+    swapColumns,
     isCodeEditorOpen,
     openCodeEditor,
     closeCodeEditor,
